@@ -1,0 +1,62 @@
+name: "WF to Create and Destroy Infra"
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+    
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.6
+
+      - name: Read environment configuration
+        id: read-env-config
+        run: |
+          CONFIG=$(jq -r ".${{ inputs.environment }}" ./infra/config.json)
+          echo "destroy=$(echo $CONFIG | jq -r '.destroy')" >> $GITHUB_ENV
+          echo "aws_account=$(echo $CONFIG | jq -r '.aws_account')" >> $GITHUB_ENV
+          echo "aws_region=$(echo $CONFIG | jq -r '.aws_region')" >> $GITHUB_ENV
+          echo "aws_assume_role_arn=$(echo $CONFIG | jq -r '.aws_assume_role_arn')" >> $GITHUB_ENV
+          echo "aws_tfstate_bucket=$(echo $CONFIG | jq -r '.aws_tfstate_bucket')" >> $GITHUB_ENV
+        
+      - name: AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.aws_assume_role_arn }}
+          role-session-name: GitHub_to_AWS_via_FederatedOIDC
+          aws-region: ${{ env.aws_region }}
+
+      - name: Terraform Init
+        run: |
+          cd infra && terraform init \
+            -backend-config="bucket=${{ env.aws_tfstate_bucket }}" \
+            -backend-config="key=${{ github.event.repository.name }}" \
+            -backend-config="region=${{ env.aws_region }}"
+      
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: terraform-plan
+        run: cd infra &&
+          terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }} &&
+          terraform plan -var-file="./envs/${{ inputs.environment }}/terraform.tfvars" -out="${{ inputs.environment }}.plan"
+
+      - name: Terraform Apply
+        run: cd infra &&
+          terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }} &&
+          terraform apply "${{ inputs.environment }}.plan"
