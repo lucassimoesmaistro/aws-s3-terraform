@@ -1,6 +1,6 @@
 {
     "dev":{
-      "destroy": false,
+      "destroy": true,
       "aws_account": 541128407328,
       "aws_region": "eu-central-1",
       "aws_assume_role_arn": "arn:aws:iam::541128407328:role/role-githubactions",
