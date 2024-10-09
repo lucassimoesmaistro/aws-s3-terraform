@@ -1,0 +1,16 @@
+{
+    "dev":{
+      "destroy": false,
+      "aws_account": 000000000000,
+      "aws_region": "eu-central-1",
+      "aws_assume_role_arn": "arn:aws:iam::000000000000:role/role-githubactions",
+      "aws_tfstate_bucket": "tfstates-lucassimoesmaistro"
+    },
+    "prod":{
+      "destroy": true,
+      "aws_account": 000000000000,
+      "aws_region": "eu-central-1",
+      "aws_assume_role_arn": "arn:aws:iam::000000000000:role/role-githubactions",
+      "aws_tfstate_bucket": "tfstates-lucassimoesmaistro"
+    }
+}
